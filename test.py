@@ -16,10 +16,6 @@ def debug_trace():
     set_trace()
 
 
-_checklist = set()
-_partial_checklist = set()
-
-
 def parseOpt():
     parser = argparse.ArgumentParser(
         description=('Select files and directories below path to be output as '
@@ -102,6 +98,8 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
     def __init__(self, *args, preselection=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.preselection = DirTree(preselection)
+        self.selected = set()
+        self.ancestors = set()
 
     def handle_preselection(self, path):
         print('loaded', path)
@@ -126,34 +124,28 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
                 self.fetchMore(child)
 
     def flags(self, index):
-        return (QtWidgets.QFileSystemModel.flags(self, index) |
-                QtCore.Qt.ItemIsUserCheckable)
+        return (super().flags(index) | QtCore.Qt.ItemIsUserCheckable)
 
     def data(self, index, role):
-        persistent_index = QtCore.QPersistentModelIndex(index)
-        if role == QtCore.Qt.CheckStateRole and index.column() == 0:
-            if persistent_index in _checklist:
-                return QtCore.Qt.Checked
-            elif persistent_index in _partial_checklist:
-                return QtCore.Qt.PartiallyChecked
-            else:
-                parent = index.parent()
-                while (parent.isValid() and
-                       self.filePath(parent) != self.rootPath()):
-                    if QtCore.QPersistentModelIndex(parent) in _checklist:
-                        return QtCore.Qt.PartiallyChecked
-                    parent = parent.parent()
-            return QtCore.Qt.Unchecked
-        return super().data(index, role)
+        if role != QtCore.Qt.CheckStateRole or index.column() != 0:
+            return super().data(index, role)
 
-    def dataInternal(self, index):
         persistent_index = QtCore.QPersistentModelIndex(index)
-        if persistent_index in _checklist:
+        if persistent_index in self.selected:
             return QtCore.Qt.Checked
-        elif persistent_index in _partial_checklist:
+        elif persistent_index in self.ancestors:
             return QtCore.Qt.PartiallyChecked
         else:
+            parent = index.parent()
+            while (parent.isValid() and
+                    self.filePath(parent) != self.rootPath()):
+                if QtCore.QPersistentModelIndex(parent) in self.selected:
+                    return QtCore.Qt.PartiallyChecked
+                parent = parent.parent()
             return QtCore.Qt.Unchecked
+
+    def _data(self, index):
+        return self.data(index, QtCore.Qt.CheckStateRole)
 
     def hasAllSiblingsUnchecked(self, index):
         for i in range(self.rowCount(index.parent())):
@@ -161,62 +153,61 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
             if sibling.isValid():
                 if sibling == index:
                     continue
-                if self.dataInternal(sibling) != QtCore.Qt.Unchecked:
+                if self._data(sibling) != QtCore.Qt.Unchecked:
                     return False
         return True
 
-    def setUncheckedRecursive(self, index):
-        if self.isDir(index):
-            for i in range(self.rowCount(index)):
-                child = index.child(i, index.column())
-                if child.isValid():
-                    # Only alter a child if it was previously Checked or
-                    # PartiallyChecked.
-                    if self.dataInternal(child) != QtCore.Qt.Unchecked:
-                        self.setDataInternal(child, QtCore.Qt.Unchecked)
-                        if self.isDir(child):
-                            self.setUncheckedRecursive(child)
-
     def setData(self, index, value, role):
-        if role == QtCore.Qt.CheckStateRole:
-            self.setDataInternal(index, value)
-            self.selection_changed.emit(index, index)
-            self.dataChanged.emit(index, index, [])
-            return True
+        if role != QtCore.Qt.CheckStateRole:
+            return super().setData(index, value, role)
 
-        return super().setData(index, value, role)
+        self.setDataInternal(index, value)
+        self.selection_changed.emit(index, index)
+        self.dataChanged.emit(index, index, [])
+        return True
+
+    def setCheckStatus(self, index, value):
+        persistent_index = QtCore.QPersistentModelIndex(index)
+
+        if value == QtCore.Qt.Checked:
+            self.ancestors.discard(persistent_index)
+            self.selected.add(persistent_index)
+        elif value == QtCore.Qt.PartiallyChecked:
+            self.selected.discard(persistent_index)
+            self.ancestors.add(persistent_index)
+        elif value == QtCore.Qt.Unchecked:
+            self.ancestors.discard(persistent_index)
+            self.selected.discard(persistent_index)
 
     def setDataInternal(self, index, value):
-        if self.dataInternal(index) == value:
+        if self._data(index) == value:
             return
 
-        persistent_index = QtCore.QPersistentModelIndex(index)
+        self.setCheckStatus(index, value)
+
         if value == QtCore.Qt.Checked:
-            _partial_checklist.discard(persistent_index)
-            _checklist.add(persistent_index)
-
             parent = index.parent()
-            if parent.isValid() and self.filePath(parent) != self.rootPath():
-                self.setDataInternal(parent, QtCore.Qt.PartiallyChecked)
+            while self.filePath(parent) != self.rootPath():
+                self.setCheckStatus(parent, QtCore.Qt.PartiallyChecked)
+                parent = parent.parent()
 
-            self.setUncheckedRecursive(index)
-        elif value == QtCore.Qt.PartiallyChecked:
-            _checklist.discard(persistent_index)
-            _partial_checklist.add(persistent_index)
+            # Make sure no checked descendants
+            queue = [index.child(i, index.column())
+                     for i in range(self.rowCount(index))]
+            while queue:
+                item = queue.pop()
+                self.setCheckStatus(item, QtCore.Qt.Unchecked)
+                queue.extend([item.child(i, index.column())
+                              for i in range(self.rowCount(item))])
 
-            parent = index.parent()
-            if parent.isValid():
-                self.setDataInternal(parent, QtCore.Qt.PartiallyChecked)
         elif value == QtCore.Qt.Unchecked:
-            _partial_checklist.discard(persistent_index)
-            _checklist.discard(persistent_index)
-
-            parent = index.parent()
-            if (parent.isValid() and
-                    self.filePath(parent) != self.rootPath() and
-                    self.dataInternal(parent) != QtCore.Qt.Checked):
-                if self.hasAllSiblingsUnchecked(index):
-                    self.setDataInternal(parent, QtCore.Qt.Unchecked)
+            child = index
+            while self.filePath(child.parent()) != self.rootPath():
+                if self.hasAllSiblingsUnchecked(child):
+                    self.setCheckStatus(child.parent(), QtCore.Qt.Unchecked)
+                else:
+                    break
+                child = child.parent()
 
 
 class Ui_Dialog(QtWidgets.QDialog):
@@ -235,7 +226,7 @@ class Ui_Dialog(QtWidgets.QDialog):
         self.tree.setModel(self.model)
         self.tree.setSortingEnabled(True)
         self.tree.setRootIndex(self.model.index(os.path.abspath(args.path)))
-        self.model.selection_changed.connect(self.update_view)
+        self.model.dataChanged.connect(self.update_view)
 
         self.setWindowTitle('Select files')
         self.tree.resize(400, 480)
@@ -257,7 +248,7 @@ class Ui_Dialog(QtWidgets.QDialog):
         self.tree.viewport().update()
 
     def print_path(self):
-        for item in _checklist:
+        for item in self.model.selected:
             print(self.model.filePath(QtCore.QModelIndex(item)))
 
 
