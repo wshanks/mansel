@@ -91,10 +91,6 @@ class DirTreeItem(dict):
 
 
 class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
-    selection_changed = QtCore.pyqtSignal(QtCore.QModelIndex,
-                                          QtCore.QModelIndex,
-                                          name='selectionChanged')
-
     def __init__(self, *args, preselection=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.preselection = DirTree(preselection)
@@ -102,7 +98,6 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
         self.ancestors = set()
 
     def handle_preselection(self, path):
-        print('loaded', path)
         relpath = Path(path)
         relpath = relpath.relative_to(self.rootPath())
 
@@ -147,22 +142,12 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
     def _data(self, index):
         return self.data(index, QtCore.Qt.CheckStateRole)
 
-    def hasAllSiblingsUnchecked(self, index):
-        for i in range(self.rowCount(index.parent())):
-            sibling = index.sibling(i, index.column())
-            if sibling.isValid():
-                if sibling == index:
-                    continue
-                if self._data(sibling) != QtCore.Qt.Unchecked:
-                    return False
-        return True
-
     def setData(self, index, value, role):
         if role != QtCore.Qt.CheckStateRole:
             return super().setData(index, value, role)
 
         self.setDataInternal(index, value)
-        self.selection_changed.emit(index, index)
+
         self.dataChanged.emit(index, index, [])
         return True
 
@@ -197,17 +182,19 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
             while queue:
                 item = queue.pop()
                 self.setCheckStatus(item, QtCore.Qt.Unchecked)
-                queue.extend([item.child(i, index.column())
-                              for i in range(self.rowCount(item))])
+                queue.extend(item.child(i, index.column())
+                             for i in range(self.rowCount(item)))
 
         elif value == QtCore.Qt.Unchecked:
-            child = index
-            while self.filePath(child.parent()) != self.rootPath():
-                if self.hasAllSiblingsUnchecked(child):
-                    self.setCheckStatus(child.parent(), QtCore.Qt.Unchecked)
+            parent = index.parent()
+            while self.filePath(parent) != self.rootPath():
+                child_data = (self._data(parent.child(i, index.column()))
+                              for i in range(self.rowCount(parent)))
+                if all(state == QtCore.Qt.Unchecked for state in child_data):
+                    self.setCheckStatus(parent, QtCore.Qt.Unchecked)
                 else:
                     break
-                child = child.parent()
+                parent = parent.parent()
 
 
 class Ui_Dialog(QtWidgets.QDialog):
