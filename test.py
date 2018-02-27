@@ -4,7 +4,7 @@ CheckablefileSystemModel supports selecting multiple files/directories
 from a tree view and also supports creation with a pre-selected set of
 paths.
 '''
-# TODO: keep running tally of selected file size
+# TODO: tests and type annotations
 from pathlib import Path
 
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -107,7 +107,9 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
     'ancestors' property.
     '''
 
-    selectionChanged = QtCore.pyqtSignal(QtCore.QFileInfo, int)
+    newDirSelected = QtCore.pyqtSignal(str)
+    recalculatingSize = QtCore.pyqtSignal()
+    newSelectionSize = QtCore.pyqtSignal(int)
 
     def __init__(self, *args, preselection=None, track_selection_size=True,
                  **kwargs):
@@ -119,8 +121,17 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
 
         self.directoryLoaded.connect(self._handle_preselection)
 
+        self.track_selection_size = track_selection_size
+        self.tracker_thread = None
+        self.tracker = None
+        self.dir_size_cache = {}
         if track_selection_size:
-            pass
+            self.tracker = DirSizeFetcher(self)
+            self.tracker_thread = QtCore.QThread()
+            self.tracker.moveToThread(self.tracker_thread)
+            self.newDirSelected.connect(self.tracker.fetch_size)
+            self.tracker.resultReady.connect(self._update_dir_size_cache)
+            self.tracker_thread.start()
 
     def _handle_preselection(self, path):
         '''Method for expanding model paths to load pre-selected items
@@ -199,10 +210,12 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
         if value == QtCore.Qt.Checked:
             self._partially_check_ancestors(index)
             self._uncheck_descendants(index)
+            if self.isDir(index):
+                self.newDirSelected.emit(self.filePath(index))
         elif value == QtCore.Qt.Unchecked:
             self._uncheck_exclusive_ancestors(index)
 
-        self.selectionChanged.emit(self.fileInfo(index), value)
+        self.calculate_selection_size()
         self.dataChanged.emit(index, index, [])
         return True
 
@@ -249,6 +262,107 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
                 break
             parent = parent.parent()
 
+    def calculate_selection_size(self):
+        if not self.track_selection_size:
+            return
+
+        size = 0
+        for index in self.selected:
+            index = QtCore.QModelIndex(index)
+            if self.isDir(index):
+                path = self.filePath(index)
+                if path in self.dir_size_cache:
+                    size += self.dir_size_cache[path]
+                else:
+                    # Waiting for directory size to be calculated
+                    self.recalculatingSize.emit()
+                    return
+            else:
+                size += self.size(index)
+
+        self.newSelectionSize.emit(size)
+
+    @QtCore.pyqtSlot(str, int)
+    def _update_dir_size_cache(self, path, size):
+        self.dir_size_cache[path] = size
+        self.calculate_selection_size()
+
+
+class DirFetcherNode(dict):
+    size = 0
+    walked = False
+
+
+class DirSizeFetcher(QtCore.QObject):
+    'Class to track size of file system selection'
+    resultReady = QtCore.pyqtSignal(str, int)
+
+    def __init__(self, model):
+        super().__init__()
+        self.dir_tree = {}
+
+        self.rootPath = Path(model.rootPath())
+        model.rootPathChanged.connect(self.update_root_path)
+
+    def update_root_path(self, newPath):
+        'Change the root path'
+        self.rootPath = Path(newPath)
+        # Invalidate the cache
+        self.dir_tree = {}
+
+    def _track_item_size(self, top_path, path, size):
+        'Add size to all the parents of path up to top_path'
+        top_path = Path(top_path)
+        mid_path = Path(path).parent
+        while mid_path != top_path.parent:
+            pointer = self._get_pointer(mid_path.relative_to(top_path.parent))
+            pointer.size += size
+            mid_path = mid_path.parent
+
+    def _get_pointer(self, path):
+        'Get pointer in nested self.dir_tree for path'
+        rel_path = Path(path)
+        if rel_path.is_absolute():
+            rel_path = rel_path.relative_to(self.rootPath)
+
+        pointer = self.dir_tree
+        for part in rel_path.parts:
+            if part not in pointer:
+                pointer[part] = DirFetcherNode()
+            pointer = pointer[part]
+
+        return pointer
+
+    @QtCore.pyqtSlot(str)
+    def fetch_size(self, path):
+        'Determine the size of directory path and emit resultReady signal'
+        pointer = self._get_pointer(path)
+        if pointer.walked:
+            self.resultReady.emit(path, pointer.size)
+            return
+
+        paths = [path]
+        while paths:
+            ipath = Path(paths.pop())
+            with os.scandir(ipath) as path_iter:
+                for subpath in path_iter:
+                    if subpath.is_dir():
+                        pointer = self._get_pointer(subpath)
+                        if pointer.walked:
+                            self._track_item_size(path, subpath, pointer.size)
+                        else:
+                            paths.append(subpath)
+                    else:
+                        self._track_item_size(path, subpath,
+                                              subpath.stat().st_size)
+
+            if ipath.is_dir():
+                pointer = self._get_pointer(ipath)
+                pointer.walked = True
+
+        pointer = self._get_pointer(path)
+        self.resultReady.emit(path, pointer.size)
+
 
 class Ui_Dialog(QtWidgets.QDialog):
     def __init__(self, args, parent=None):
@@ -264,11 +378,30 @@ class Ui_Dialog(QtWidgets.QDialog):
         self.tree.setRootIndex(self.model.index(os.path.abspath(args.path)))
 
         self.button = QtWidgets.QPushButton("OK")
-        self.button.clicked.connect(self.print_path)
+        self.button.clicked.connect(self.print_selection_and_close)
+
+        self.cancel_button = QtWidgets.QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.close)
+
+        b_layout = QtWidgets.QHBoxLayout(parent)
+        b_layout.addWidget(self.cancel_button)
+        b_layout.addWidget(self.button)
+        button_box = QtWidgets.QGroupBox()
+        button_box.setLayout(b_layout)
+
+        self.size_box = QtWidgets.QLabel()
+        self.size_box.setAlignment(QtCore.Qt.AlignHCenter)
+        self.size_box.setText('Selection size: 0 bytes')
+        self.selection_size = 0
+        self.model.recalculatingSize.connect(self.indicate_calculating)
+        self.model.newSelectionSize.connect(self.update_size)
 
         layout = QtWidgets.QVBoxLayout(parent)
         layout.addWidget(self.tree)
-        layout.addWidget(self.button)
+        # layout.addWidget(self.button)
+        # layout.addWidget(self.cancel_button)
+        layout.addWidget(button_box)
+        layout.addWidget(self.size_box)
         self.setLayout(layout)
 
         self.setObjectName("Dialog")
@@ -279,13 +412,38 @@ class Ui_Dialog(QtWidgets.QDialog):
 
         QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+Q"), self, self.close)
         QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+W"), self, self.close)
+        QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+Return"), self,
+                            self.print_selection_and_close)
 
+    @QtCore.pyqtSlot()
+    def indicate_calculating(self):
+        locale = QtCore.QLocale()
+        human_size = locale.formattedDataSize(self.selection_size,
+                                              format=locale.DataSizeSIFormat)
+        fmt = 'Selection size: {}...(Calculating)'
+        self.size_box.setText(fmt.format(human_size))
+        self.size_box.repaint()
+
+    @QtCore.pyqtSlot(int)
+    def update_size(self, size):
+        self.selection_size = size
+
+        locale = QtCore.QLocale()
+        human_size = locale.formattedDataSize(size,
+                                              format=locale.DataSizeSIFormat)
+        msg = 'Selection size: {}'.format(human_size)
+        self.size_box.setText(msg)
+        self.size_box.repaint()
+
+    @QtCore.pyqtSlot()
     def update_view(self):
         self.tree.viewport().update()
 
-    def print_path(self):
+    @QtCore.pyqtSlot()
+    def print_selection_and_close(self):
         for item in self.model.selected:
             print(self.model.filePath(QtCore.QModelIndex(item)))
+        self.close()
 
 
 if __name__ == "__main__":
@@ -293,8 +451,8 @@ if __name__ == "__main__":
         'Parse command line arguments'
         import argparse
         parser = argparse.ArgumentParser(
-            description=('Select files and directories below path to be output '
-                         'as a list'))
+            description=('Select files and directories below path to be '
+                         'output as a list'))
         parser.add_argument('--path', '-p', help='Root path',
                             default='.')
         parser.add_argument('selection', nargs='*')
