@@ -4,13 +4,13 @@ CheckablefileSystemModel supports selecting multiple files/directories
 from a tree view and also supports creation with a pre-selected set of
 paths.
 '''
-# TODO: tests and type annotations
+# TODO: tests and Qt type annotations
+import os
 from pathlib import Path
+import sys
 from typing import Any, Dict, List, Optional, Set
 
 from PyQt5 import QtCore, QtWidgets, QtGui
-import os
-import sys
 
 
 def debug_trace():
@@ -35,11 +35,10 @@ class DirTree:
     def __init__(self, paths: List[str]) -> None:
         self.root = DirTreeItem()
         for path in paths:
-            self.insert(path)
+            self.insert(Path(path))
 
-    def insert(self, path: str) -> None:
+    def insert(self, path: Path) -> None:
         'Insert path into the tree'
-        path = Path(path)
         parent = self.root
         for index, part in enumerate(path.parts):
             if part not in parent:
@@ -51,9 +50,8 @@ class DirTree:
 
             parent = parent[part]
 
-    def remove(self, path: str) -> None:
+    def remove(self, path: Path) -> None:
         'Remove path from the tree'
-        path = Path(path)
         pos = self.root
         for part in path.parts:
             pos = pos[part]
@@ -64,7 +62,7 @@ class DirTree:
             del parent[pos.name]
             pos = parent
 
-    def check(self, path: str) -> str:
+    def check(self, path: Path) -> str:
         '''Check if path is in tree
 
         Return:
@@ -72,7 +70,6 @@ class DirTree:
             'parent': in tree with elements nested below
             'unselected': not in tree
         '''
-        path = Path(path)
         pos = self.root
         for part in path.parts:
             if part in pos:
@@ -82,8 +79,8 @@ class DirTree:
 
         if pos:
             return 'parent'
-        else:
-            return 'leaf'
+        # else
+        return 'leaf'
 
 
 class DirTreeItem(dict):
@@ -148,14 +145,11 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
         pre-selection. Pre-selected patsh are marked as
         checked. Ancestors of pre-selected paths are loaded.
         '''
-        relpath = Path(path)
-        relpath = relpath.relative_to(self.rootPath())
-
         index = self.index(path)
         for row in range(self.rowCount(index)):
             child = index.child(row, index.column())
-            child_path = os.path.relpath(self.filePath(child),
-                                         start=self.rootPath())
+            child_path = (Path(self.filePath(child)).
+                          relative_to(self.rootPath()))
             status = self.preselection.check(child_path)
             if status == 'leaf':
                 self.setData(child,
@@ -306,7 +300,7 @@ class DirSizeFetcher(QtCore.QObject):
 
     def __init__(self, model: CheckableFileSystemModel) -> None:
         super().__init__()
-        self.dir_tree = {}
+        self.dir_tree = DirFetcherNode()
 
         self.rootPath = Path(model.rootPath())
         model.rootPathChanged.connect(self.update_root_path)
@@ -315,22 +309,22 @@ class DirSizeFetcher(QtCore.QObject):
         'Change the root path'
         self.rootPath = Path(newPath)
         # Invalidate the cache
-        self.dir_tree = {}
+        self.dir_tree = DirFetcherNode()
 
-    def _track_item_size(self, top_path: str, path: str, size: int) -> None:
+    def _track_item_size(self, top_path: Path, path: Path, size: int) -> None:
         'Add size to all the parents of path up to top_path'
-        top_path = Path(top_path)
-        mid_path = Path(path).parent
+        mid_path = path.parent
         while mid_path != top_path.parent:
             pointer = self._get_pointer(mid_path.relative_to(top_path.parent))
             pointer.size += size
             mid_path = mid_path.parent
 
-    def _get_pointer(self, path: str) -> DirFetcherNode:
+    def _get_pointer(self, path: Path) -> DirFetcherNode:
         'Get pointer in nested self.dir_tree for path'
-        rel_path = Path(path)
-        if rel_path.is_absolute():
-            rel_path = rel_path.relative_to(self.rootPath)
+        if path.is_absolute():
+            rel_path = path.relative_to(self.rootPath)
+        else:
+            rel_path = path
 
         pointer = self.dir_tree
         for part in rel_path.parts:
@@ -343,7 +337,7 @@ class DirSizeFetcher(QtCore.QObject):
     @QtCore.pyqtSlot(str)
     def fetch_size(self, path: str) -> None:
         'Determine the size of directory path and emit resultReady signal'
-        pointer = self._get_pointer(path)
+        pointer = self._get_pointer(Path(path))
         if pointer.walked:
             self.resultReady.emit(path, pointer.size)
             return
@@ -356,18 +350,19 @@ class DirSizeFetcher(QtCore.QObject):
                     if subpath.is_dir():
                         pointer = self._get_pointer(subpath)
                         if pointer.walked:
-                            self._track_item_size(path, subpath, pointer.size)
+                            self._track_item_size(Path(path), Path(subpath),
+                                                  pointer.size)
                         else:
                             paths.append(subpath)
                     else:
-                        self._track_item_size(path, subpath,
+                        self._track_item_size(Path(path), Path(subpath),
                                               subpath.stat().st_size)
 
             if ipath.is_dir():
                 pointer = self._get_pointer(ipath)
                 pointer.walked = True
 
-        pointer = self._get_pointer(path)
+        pointer = self._get_pointer(Path(path))
         self.resultReady.emit(path, pointer.size)
 
 
