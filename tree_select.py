@@ -4,7 +4,7 @@ CheckablefileSystemModel supports selecting multiple files/directories
 from a tree view and also supports creation with a pre-selected set of
 paths.
 '''
-# TODO: tests and Qt type annotations
+# TODO: tests
 import os
 from pathlib import Path
 import sys
@@ -92,7 +92,7 @@ class DirTreeItem(dict):
     '''
     def __init__(self, *args,
                  name: str = '',
-                 parent: Optional[DirTreeItem] = None,
+                 parent: Optional['DirTreeItem'] = None,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -166,11 +166,12 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
         return super().flags(index) | QtCore.Qt.ItemIsUserCheckable
 
     def data(self, index: QtCore.QModelIndex, role: int) -> Any:
+        'Data for given model index and role'
         # Override parent class method to handle checkboxes
         if role == QtCore.Qt.CheckStateRole and index.column() == 0:
             return self._data(index)
-        else:
-            return super().data(index, role)
+        # else
+        return super().data(index, role)
 
     def _data(self, index: QtCore.QModelIndex) -> int:
         'Get checkbox status data'
@@ -180,28 +181,31 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
         elif (persistent_index in self.ancestors or
               self._has_checked_ancestor(index)):
             return QtCore.Qt.PartiallyChecked
-        else:
-            return QtCore.Qt.Unchecked
+        # else
+        return QtCore.Qt.Unchecked
 
     def _has_checked_ancestor(self, index: QtCore.QModelIndex) -> bool:
         parent = index.parent()
         while (parent.isValid() and
-                self.filePath(parent) != self.rootPath()):
+               self.filePath(parent) != self.rootPath()):
             if QtCore.QPersistentModelIndex(parent) in self.selected:
                 return True
             parent = parent.parent()
 
         return False
 
-    def setData(self, index: QtCore.QModelIndex, value: Any,
+    def setData(self,  # pylint: disable=invalid-name
+                index: QtCore.QModelIndex, value: Any,
                 role: int) -> bool:
+        'Set model data for index'
         # Override parent class method to handle checkboxes
         if role == QtCore.Qt.CheckStateRole:
             return self._setData(index, value)
-        else:
-            return super().setData(index, value, role)
+        # else
+        return super().setData(index, value, role)
 
-    def _setData(self, index: QtCore.QModelIndex, value: int) -> bool:
+    def _setData(self,  # pylint: disable=invalid-name
+                 index: QtCore.QModelIndex, value: int) -> bool:
         'Set checkbox status data and update ancestors/descendants'
         if self._data(index) == value:
             return True
@@ -264,6 +268,10 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
             parent = parent.parent()
 
     def calculate_selection_size(self) -> None:
+        '''Sum size of all selected items and emit signal
+
+        Emit recalculatingsize if directory is selected that is not cached.
+        '''
         if not self.track_selection_size:
             return
 
@@ -285,11 +293,13 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
 
     @QtCore.pyqtSlot(str, int)
     def _update_dir_size_cache(self, path: str, size: int) -> None:
+        'Update cache entry for path'
         self.dir_size_cache[path] = size
         self.calculate_selection_size()
 
 
 class DirFetcherNode(dict):
+    'Container used by DirSizefetcher to cache item size in directory tree'
     size = 0
     walked = False
 
@@ -302,12 +312,12 @@ class DirSizeFetcher(QtCore.QObject):
         super().__init__()
         self.dir_tree = DirFetcherNode()
 
-        self.rootPath = Path(model.rootPath())
+        self.root_path = Path(model.rootPath())
         model.rootPathChanged.connect(self.update_root_path)
 
-    def update_root_path(self, newPath: str) -> None:
+    def update_root_path(self, new_path: str) -> None:
         'Change the root path'
-        self.rootPath = Path(newPath)
+        self.root_path = Path(new_path)
         # Invalidate the cache
         self.dir_tree = DirFetcherNode()
 
@@ -322,7 +332,7 @@ class DirSizeFetcher(QtCore.QObject):
     def _get_pointer(self, path: Path) -> DirFetcherNode:
         'Get pointer in nested self.dir_tree for path'
         if path.is_absolute():
-            rel_path = path.relative_to(self.rootPath)
+            rel_path = path.relative_to(self.root_path)
         else:
             rel_path = path
 
@@ -348,7 +358,7 @@ class DirSizeFetcher(QtCore.QObject):
             with os.scandir(ipath) as path_iter:
                 for subpath in path_iter:
                     if subpath.is_dir():
-                        pointer = self._get_pointer(subpath)
+                        pointer = self._get_pointer(Path(subpath))
                         if pointer.walked:
                             self._track_item_size(Path(path), Path(subpath),
                                                   pointer.size)
@@ -366,7 +376,8 @@ class DirSizeFetcher(QtCore.QObject):
         self.resultReady.emit(path, pointer.size)
 
 
-class Ui_Dialog(QtWidgets.QDialog):
+class UIDialog(QtWidgets.QDialog):
+    'Dialog window illustrating use of Checkablefilesystemmodel class'
     def __init__(self, args, parent=None) -> None:
         QtWidgets.QDialog.__init__(self, parent)
 
@@ -419,6 +430,7 @@ class Ui_Dialog(QtWidgets.QDialog):
 
     @QtCore.pyqtSlot()
     def indicate_calculating(self) -> None:
+        'Indicate that selection size is being recalculated'
         locale = QtCore.QLocale()
         human_size = locale.formattedDataSize(self.selection_size,
                                               format=locale.DataSizeSIFormat)
@@ -428,6 +440,7 @@ class Ui_Dialog(QtWidgets.QDialog):
 
     @QtCore.pyqtSlot(int)
     def update_size(self, size: int) -> None:
+        'Update label showing selection size'
         self.selection_size = size
 
         locale = QtCore.QLocale()
@@ -439,30 +452,38 @@ class Ui_Dialog(QtWidgets.QDialog):
 
     @QtCore.pyqtSlot()
     def update_view(self) -> None:
+        'Refresh UI'
         self.tree.viewport().update()
 
     @QtCore.pyqtSlot()
     def print_selection_and_close(self) -> None:
+        'Print newline delimited paths of selected items and close dialog'
         for item in self.model.selected:
             print(self.model.filePath(QtCore.QModelIndex(item)))
         self.close()
 
 
-if __name__ == "__main__":
-    def parse_options():
-        'Parse command line arguments'
-        import argparse
-        parser = argparse.ArgumentParser(
-            description=('Select files and directories below path to be '
-                         'output as a list'))
-        parser.add_argument('--path', '-p', help='Root path',
-                            default='.')
-        parser.add_argument('selection', nargs='*')
-        return parser.parse_args()
+def parse_options():
+    'Parse command line arguments'
+    import argparse
+    parser = argparse.ArgumentParser(
+        description=('Select files and directories below path to be '
+                     'output as a list'))
+    parser.add_argument('--path', '-p', help='Root path',
+                        default='.')
+    parser.add_argument('selection', nargs='*')
+    return parser.parse_args()
 
+
+def main():
+    'Main function'
     args = parse_options()
     app = QtWidgets.QApplication([])
-    ui = Ui_Dialog(args)
-    ui.show()
+    dialog = UIDialog(args)
+    dialog.show()
 
     sys.exit(app.exec_())
+
+
+if __name__ == "__main__":
+    main()
