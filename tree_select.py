@@ -5,6 +5,7 @@ from a tree view and also supports creation with a pre-selected set of
 paths.
 '''
 # TODO: tests
+# TODO: readme
 import os
 from pathlib import Path
 import sys
@@ -112,12 +113,12 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
     recalculatingSize = QtCore.pyqtSignal()
     newSelectionSize = QtCore.pyqtSignal(int)
 
-    def __init__(self, *args,
+    def __init__(self,
+                 parent: QtCore.QObject = None,
                  preselection: Optional[List[str]] = None,
-                 track_selection_size: bool = True,
-                 **kwargs) -> None:
+                 track_selection_size: bool = True) -> None:
         'preselection: list of paths relative to rootPath to pre-select'
-        super().__init__(*args, **kwargs)
+        super().__init__(parent=parent)
         self.preselection = DirTree(preselection)
         self.selected: Set[QtCore.QPersistentModelIndex] = set()
         self.ancestors: Set[QtCore.QPersistentModelIndex] = set()
@@ -134,6 +135,12 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
             self.tracker.moveToThread(self.tracker_thread)
             self.newDirSelected.connect(self.tracker.fetch_size)
             self.tracker.resultReady.connect(self._update_dir_size_cache)
+            if hasattr(parent, 'finished'):
+                parent.finished.connect(self.tracker_thread.quit)
+            else:
+                print('CheckableFileSystemModel parent has no "finished" '
+                      'signal. Tracker thread will not be shut down cleanly.',
+                      file=sys.stderr)
             self.tracker_thread.start()
 
     def _handle_preselection(self, path: str) -> None:
@@ -381,7 +388,8 @@ class UIDialog(QtWidgets.QDialog):
     def __init__(self, args, parent=None) -> None:
         QtWidgets.QDialog.__init__(self, parent)
 
-        self.model = CheckableFileSystemModel(preselection=args.selection)
+        self.model = CheckableFileSystemModel(self,
+                                              preselection=args.selection)
         self.model.setRootPath(os.path.abspath(args.path))
         self.model.dataChanged.connect(self.update_view)
 
@@ -411,8 +419,6 @@ class UIDialog(QtWidgets.QDialog):
 
         layout = QtWidgets.QVBoxLayout(parent)
         layout.addWidget(self.tree)
-        # layout.addWidget(self.button)
-        # layout.addWidget(self.cancel_button)
         layout.addWidget(button_box)
         layout.addWidget(self.size_box)
         self.setLayout(layout)
