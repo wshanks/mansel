@@ -170,6 +170,9 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
 
     def flags(self, index: QtCore.QModelIndex) -> int:
         'Enable checkboxes'
+        if not index.isValid():
+            return super().flags(index)
+
         return super().flags(index) | QtCore.Qt.ItemIsUserCheckable
 
     def data(self, index: QtCore.QModelIndex, role: int) -> Any:
