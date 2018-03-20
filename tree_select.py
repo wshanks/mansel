@@ -119,11 +119,13 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
                  track_selection_size: bool = True) -> None:
         'preselection: list of paths relative to rootPath to pre-select'
         super().__init__(parent=parent)
-        self.preselection = DirTree(preselection)
+        if preselection is not None:
+            self.preselection = DirTree(preselection)
+            self.directoryLoaded.connect(self._handle_preselection)
+        else:
+            self.preselection = None
         self.selected: Set[QtCore.QPersistentModelIndex] = set()
         self.ancestors: Set[QtCore.QPersistentModelIndex] = set()
-
-        self.directoryLoaded.connect(self._handle_preselection)
 
         self.track_selection_size = track_selection_size
         self.tracker_thread = None
