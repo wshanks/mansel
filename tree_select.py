@@ -109,6 +109,7 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
     'ancestors' property.
     '''
 
+    preselectionProcessed = QtCore.pyqtSignal()
     newDirSelected = QtCore.pyqtSignal(str)
     recalculatingSize = QtCore.pyqtSignal()
     newSelectionSize = QtCore.pyqtSignal(int)
@@ -167,6 +168,7 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
                 self.preselection.remove(child_path)
                 if not self.preselection.root:
                     self.directoryLoaded.disconnect(self._handle_preselection)
+                    self.preselectionProcessed.emit()
             elif status == 'parent' and self.isDir(child):
                 self.fetchMore(child)
 
