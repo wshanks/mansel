@@ -388,18 +388,19 @@ class DirSizeFetcher(QtCore.QObject):
 
 class UIDialog(QtWidgets.QDialog):
     'Dialog window illustrating use of Checkablefilesystemmodel class'
-    def __init__(self, args, parent=None) -> None:
+    def __init__(self, root_path: str, selection: List[str] = None,
+                 parent: QtCore.QObject = None) -> None:
         QtWidgets.QDialog.__init__(self, parent)
 
         self.model = CheckableFileSystemModel(self,
-                                              preselection=args.selection)
-        self.model.setRootPath(os.path.abspath(args.path))
+                                              preselection=selection)
+        self.model.setRootPath(os.path.abspath(root_path))
         self.model.dataChanged.connect(self.update_view)
 
         self.tree = QtWidgets.QTreeView()
         self.tree.setModel(self.model)
         self.tree.setSortingEnabled(True)
-        self.tree.setRootIndex(self.model.index(os.path.abspath(args.path)))
+        self.tree.setRootIndex(self.model.index(os.path.abspath(root_path)))
 
         self.button = QtWidgets.QPushButton("OK")
         self.button.clicked.connect(self.print_selection_and_close)
@@ -488,7 +489,8 @@ def main():
     'Main function'
     args = parse_options()
     app = QtWidgets.QApplication([])
-    dialog = UIDialog(args)
+    dialog = UIDialog(root_path=args.path,
+                      selection=args.selection)
     dialog.show()
 
     sys.exit(app.exec_())
