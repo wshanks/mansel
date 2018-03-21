@@ -1,4 +1,5 @@
 'Test tree_select module'
+from collections import Counter
 import os
 from pathlib import Path
 import sys
@@ -13,9 +14,11 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 import tree_select  # NOQA
 
 
-DIRS = ('d0', 'd1/d0', 'd1/d1')
-FILES = ('f0', 'd0/f0', 'd1/d0/f0', 'd1/d0/f1')
+FILES = ('f0', 'd0/f0', 'd1/d0/d0/f0', 'd1/d0/d0/f1')
 FILESIZE = 10000
+DIRS = tuple(set([str(Path(p).parent)
+                  for p in FILES
+                  if len(Path(p).parts) > 1]))
 
 
 def set_path(model, path, state):
@@ -197,3 +200,57 @@ def test_track_size(tmp_root_dir, qtbot):
 
     with qtbot.waitSignal(model.tracker_thread.finished, timeout=None):
         model.tracker_thread.quit()
+
+
+def test_dir_size_fetcher(tmp_root_dir, qtbot):
+    # Find top level directory with most files below it
+    dirs = Counter(Path(f).parts[0] for f in FILES)
+    dir_, count = dirs.most_common(1)[0]
+
+    # Find an intermediate dir to select first, to test cached lookup
+    # during higher level lookup
+    for path in FILES:
+        path = Path(path)
+        if path.parts[0] == dir_ and len(path.parts) >= 3:
+            inter_dir = path.parent
+            break
+    inter_dir_count = 0
+    for path in FILES:
+        try:
+            Path(path).relative_to(inter_dir)
+        except ValueError:
+            continue
+        inter_dir_count += 1
+
+    model = tree_select.CheckableFileSystemModel(track_selection_size=False)
+    model.setRootPath(str(tmp_root_dir))
+    qtbot.addWidget(model)
+
+    set_path(model, tmp_root_dir / dir_, QtCore.Qt.Checked)
+
+    fetcher = tree_select.DirSizeFetcher(model)
+    qtbot.addWidget(fetcher)
+    # Test intermediate dir
+    # import pudb; pudb.set_trace()
+    with qtbot.waitSignal(fetcher.resultReady, timeout=None) as blocker:
+        fetcher.fetch_size(str(tmp_root_dir / inter_dir))
+    assert blocker.args[1] == inter_dir_count * FILESIZE
+
+    # Test top level dir
+    # Test twice to test initial lookup and cached lookup
+    for _ in range(2):
+        with qtbot.waitSignal(fetcher.resultReady, timeout=None) as blocker:
+            fetcher.fetch_size(str(tmp_root_dir / dir_))
+        assert blocker.args[1] == count * FILESIZE
+
+
+def test_dir_size_fetcher_paths(tmp_root_dir, qtbot):
+    model = tree_select.CheckableFileSystemModel(track_selection_size=False)
+    model.setRootPath(str(tmp_root_dir))
+    qtbot.addWidget(model)
+
+    fetcher = tree_select.DirSizeFetcher(model)
+    qtbot.addWidget(fetcher)
+
+    assert (fetcher._get_pointer(Path(FILES[0])) is
+            fetcher._get_pointer(tmp_root_dir / FILES[0]))
