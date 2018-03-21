@@ -140,9 +140,9 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
             self.tracker.resultReady.connect(self._update_dir_size_cache)
             if hasattr(parent, 'finished'):
                 parent.finished.connect(self.tracker_thread.quit)
-            else:  # pragma: no cover
+            else:
                 print('CheckableFileSystemModel parent has no "finished" '
-                      'signal. Tracker thread will not be shut down cleanly.',
+                      'signal. Tracker thread must be shut down cleanly.',
                       file=sys.stderr)
             self.tracker_thread.start()
 

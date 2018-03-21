@@ -5,7 +5,7 @@ import sys
 import tempfile
 
 import pytest
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtWidgets
 
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
@@ -16,6 +16,11 @@ import tree_select  # NOQA
 DIRS = ('d0', 'd1/d0', 'd1/d1')
 FILES = ('f0', 'd0/f0', 'd1/d0/f0', 'd1/d0/f1')
 FILESIZE = 10000
+
+
+def set_path(model, path, state):
+    index = model.index(str(path))
+    model.setData(index, state, QtCore.Qt.CheckStateRole)
 
 
 @pytest.fixture
@@ -85,11 +90,6 @@ def test_preselection(tmp_root_dir, qtbot):
     selected_paths = [str(Path(p).relative_to(model.rootPath()))
                       for p in selected_paths]
     assert set(selected_paths) == set(preselection)
-
-
-def set_path(model, path, state):
-    index = model.index(str(path))
-    model.setData(index, state, QtCore.Qt.CheckStateRole)
 
 
 def test_selection(tmp_root_dir, qtbot):
@@ -165,3 +165,35 @@ def test_main_dialog(tmp_root_dir, qtbot):
     qtbot.addWidget(dialog)
     with qtbot.waitSignal(dialog.model.tracker_thread.finished, timeout=None):
         dialog.close()
+
+
+def test_model_no_parent(tmp_root_dir, qtbot):
+    'Test no error for model without parent if shut down cleanly'
+    model = tree_select.CheckableFileSystemModel()
+    model.setRootPath(str(tmp_root_dir))
+
+    with qtbot.waitSignal(model.tracker_thread.finished, timeout=None):
+        model.tracker_thread.quit()
+
+
+def test_track_size(tmp_root_dir, qtbot):
+    'Test no error for model without parent if shut down cleanly'
+    model = tree_select.CheckableFileSystemModel()
+    model.setRootPath(str(tmp_root_dir))
+
+    for file_ in FILES:
+        set_path(model, tmp_root_dir / file_, QtCore.Qt.Checked)
+    with qtbot.waitSignal(model.newSelectionSize, timeout=None) as blocker:
+        model.calculate_selection_size()
+    files_size = blocker.args[0]
+    assert files_size == FILESIZE * len(FILES)
+
+    for path in tmp_root_dir.iterdir():
+            set_path(model, path, QtCore.Qt.Checked)
+    with qtbot.waitSignal(model.newSelectionSize, timeout=None) as blocker:
+        model.calculate_selection_size()
+    total_size = blocker.args[0]
+    assert total_size == files_size
+
+    with qtbot.waitSignal(model.tracker_thread.finished, timeout=None):
+        model.tracker_thread.quit()
