@@ -1,4 +1,5 @@
 'Test tree_select module'
+# TODO: Could add UI level tests that click checkboxes, buttons, etc.
 from collections import Counter
 import os
 from pathlib import Path
@@ -167,7 +168,12 @@ def test_main_dialog(tmp_root_dir, qtbot):
     dialog = tree_select.main_dialog(args_in=['-p', str(tmp_root_dir)])
     qtbot.addWidget(dialog)
     with qtbot.waitSignal(dialog.model.tracker_thread.finished, timeout=None):
-        dialog.close()
+        # Run through main methods to make sure they don't crash
+        # (i.e. this doesn't validate that they do the right thing!)
+        dialog.indicate_calculating()
+        dialog.update_size(0)
+        dialog.update_view()
+        dialog.print_selection_and_close()
 
 
 def test_model_no_parent(tmp_root_dir, qtbot):
@@ -244,13 +250,14 @@ def test_dir_size_fetcher(tmp_root_dir, qtbot):
         assert blocker.args[1] == count * FILESIZE
 
 
-def test_dir_size_fetcher_paths(tmp_root_dir, qtbot):
-    model = tree_select.CheckableFileSystemModel(track_selection_size=False)
-    model.setRootPath(str(tmp_root_dir))
-    qtbot.addWidget(model)
+def test_output(tmp_root_dir, qtbot, capsys):
+    'Test dialog prints out the right selection at end'
+    dialog = tree_select.main_dialog(args_in=['-p', str(tmp_root_dir)])
+    qtbot.addWidget(dialog)
+    with qtbot.waitSignal(dialog.model.tracker_thread.finished, timeout=None):
+        for file_ in FILES:
+            set_path(dialog.model, tmp_root_dir / file_, QtCore.Qt.Checked)
+        dialog.print_selection_and_close()
 
-    fetcher = tree_select.DirSizeFetcher(model)
-    qtbot.addWidget(fetcher)
-
-    assert (fetcher._get_pointer(Path(FILES[0])) is
-            fetcher._get_pointer(tmp_root_dir / FILES[0]))
+    captured = capsys.readouterr()
+    assert set(captured.out.splitlines()) == set(FILES)
