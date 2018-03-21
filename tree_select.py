@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional, Set
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 
-def debug_trace():
+def debug_trace():  # pragma: no cover
     '''Set a tracepoint in the Python debugger that works with Qt'''
     from PyQt5.QtCore import pyqtRemoveInputHook
     from pudb import set_trace
@@ -140,7 +140,7 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
             self.tracker.resultReady.connect(self._update_dir_size_cache)
             if hasattr(parent, 'finished'):
                 parent.finished.connect(self.tracker_thread.quit)
-            else:
+            else:  # pragma: no cover
                 print('CheckableFileSystemModel parent has no "finished" '
                       'signal. Tracker thread will not be shut down cleanly.',
                       file=sys.stderr)
@@ -477,7 +477,7 @@ class UIDialog(QtWidgets.QDialog):
         self.close()
 
 
-def parse_options():
+def parse_options(args_in=None):
     'Parse command line arguments'
     import argparse
     parser = argparse.ArgumentParser(
@@ -486,19 +486,19 @@ def parse_options():
     parser.add_argument('--path', '-p', help='Root path',
                         default='.')
     parser.add_argument('selection', nargs='*')
-    return parser.parse_args()
+    return parser.parse_args(args_in)
 
 
-def main():
+def main_dialog(args_in=None):
     'Main function'
-    args = parse_options()
-    app = QtWidgets.QApplication([])
+    args = parse_options(args_in)
     dialog = UIDialog(root_path=args.path,
                       selection=args.selection)
     dialog.show()
+    return dialog
 
+
+if __name__ == "__main__":  # pragma: no cover
+    app = QtWidgets.QApplication([])
+    main_dialog()
     sys.exit(app.exec_())
-
-
-if __name__ == "__main__":
-    main()
