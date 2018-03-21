@@ -4,8 +4,6 @@ CheckablefileSystemModel supports selecting multiple files/directories
 from a tree view and also supports creation with a pre-selected set of
 paths.
 '''
-# TODO: tests
-# TODO: readme
 import os
 from pathlib import Path
 import sys
@@ -339,17 +337,13 @@ class DirSizeFetcher(QtCore.QObject):
         'Add size to all the parents of path up to top_path'
         mid_path = path.parent
         while mid_path != top_path.parent:
-            # pointer = self._get_pointer(mid_path)
             pointer = self._get_pointer(mid_path)
             pointer.size += size
             mid_path = mid_path.parent
 
     def _get_pointer(self, path: Path) -> DirFetcherNode:
         'Get pointer in nested self.dir_tree for path'
-        if path.is_absolute():
-            rel_path = path.relative_to(self.root_path)
-        else:
-            rel_path = path
+        rel_path = path.relative_to(self.root_path)
 
         pointer = self.dir_tree
         for part in rel_path.parts:
