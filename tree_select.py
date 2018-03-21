@@ -474,7 +474,8 @@ class UIDialog(QtWidgets.QDialog):
     def print_selection_and_close(self) -> None:
         'Print newline delimited paths of selected items and close dialog'
         for item in self.model.selected:
-            print(self.model.filePath(QtCore.QModelIndex(item)))
+            path = self.model.filePath(QtCore.QModelIndex(item))
+            print(Path(path).relative_to(self.model.rootPath()))
         self.close()
 
 
