@@ -339,7 +339,8 @@ class DirSizeFetcher(QtCore.QObject):
         'Add size to all the parents of path up to top_path'
         mid_path = path.parent
         while mid_path != top_path.parent:
-            pointer = self._get_pointer(mid_path.relative_to(top_path.parent))
+            # pointer = self._get_pointer(mid_path)
+            pointer = self._get_pointer(mid_path)
             pointer.size += size
             mid_path = mid_path.parent
 
@@ -372,14 +373,14 @@ class DirSizeFetcher(QtCore.QObject):
             with os.scandir(ipath) as path_iter:
                 for subpath in path_iter:
                     if subpath.is_dir():
-                        pointer = self._get_pointer(Path(subpath))
+                        pointer = self._get_pointer(ipath / subpath)
                         if pointer.walked:
-                            self._track_item_size(Path(path), Path(subpath),
+                            self._track_item_size(Path(path), ipath / subpath,
                                                   pointer.size)
                         else:
                             paths.append(subpath)
                     else:
-                        self._track_item_size(Path(path), Path(subpath),
+                        self._track_item_size(Path(path), ipath / subpath,
                                               subpath.stat().st_size)
 
             if ipath.is_dir():
