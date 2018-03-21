@@ -500,5 +500,6 @@ def main_dialog(args_in=None):
 
 if __name__ == "__main__":  # pragma: no cover
     app = QtWidgets.QApplication([])
-    main_dialog()
+    # Need to store dialog in variable the dialog widget gets garbage collected
+    dialog = main_dialog()
     sys.exit(app.exec_())
