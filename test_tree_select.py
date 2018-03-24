@@ -1,18 +1,19 @@
 'Test tree_select module'
-# TODO: Could add UI level tests that click checkboxes, buttons, etc.
 from collections import Counter
 import os
 from pathlib import Path
 import sys
 import tempfile
 
-import pytest
 from PyQt5 import QtCore, QtWidgets
+import pytest
 
 
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
+# pylint: disable=wrong-import-position
 import tree_select  # NOQA
+# pylint: enable=wrong-import-position
 
 
 FILES = ('f0', 'd0/f1', 'd1/d2/d3/f2', 'd1/d2/d3/f3', 'd1/d4/d5/f4')
@@ -22,11 +23,14 @@ DIRS = tuple(set([str(Path(p).parent)
                   if len(Path(p).parts) > 1]))
 
 
-def set_path(model, path, state):
+def set_path(model: tree_select.CheckableFileSystemModel, path: Path,
+             state: int):
+    'Set a path in the CheckableFilesystemModel model'
     index = model.index(str(path))
     model.setData(index, state, QtCore.Qt.CheckStateRole)
 
 
+# pylint: disable=redefined-outer-name
 @pytest.fixture
 def tmp_root_dir():
     'Temporary file hierarchy for CheckableFileSystemModel'
@@ -72,6 +76,7 @@ def test_model_qtmodeltester(qtmodeltester):
 
 
 def test_preselection(tmp_root_dir, qtbot):
+    'Test preselecting items in CheckableFilesystemModel'
     dialog = QtWidgets.QDialog()
     qtbot.addWidget(dialog)
 
@@ -97,6 +102,7 @@ def test_preselection(tmp_root_dir, qtbot):
 
 
 def test_selection(tmp_root_dir, qtbot):
+    'Test basic item selection'
     dialog = QtWidgets.QDialog()
     qtbot.addWidget(dialog)
 
@@ -128,6 +134,7 @@ def test_selection(tmp_root_dir, qtbot):
 
 
 def test_partial_selection(tmp_root_dir, qtbot):
+    'Test ancesotrs/descendants are partially selected'
     dialog = QtWidgets.QDialog()
     qtbot.addWidget(dialog)
 
@@ -212,7 +219,7 @@ def test_track_size(tmp_root_dir, qtbot):
     assert files_size == FILESIZE * len(FILES)
 
     for path in tmp_root_dir.iterdir():
-            set_path(model, path, QtCore.Qt.Checked)
+        set_path(model, path, QtCore.Qt.Checked)
     with qtbot.waitSignal(model.newSelectionSize, timeout=None) as blocker:
         model.calculate_selection_size()
     total_size = blocker.args[0]
@@ -223,6 +230,7 @@ def test_track_size(tmp_root_dir, qtbot):
 
 
 def test_dir_size_fetcher(tmp_root_dir, qtbot):
+    'Test DirSizeFetcher can get directory sizes'
     # Find top level directory with most files below it
     dirs = Counter(Path(f).parts[0] for f in FILES)
     dir_, count = dirs.most_common(1)[0]
