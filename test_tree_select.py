@@ -1,4 +1,4 @@
-'Test tree_select module'
+'Test treeselect module'
 from collections import Counter
 import os
 from pathlib import Path
@@ -12,7 +12,7 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 # pylint: disable=wrong-import-position
-import tree_select  # NOQA
+import treeselect  # NOQA
 # pylint: enable=wrong-import-position
 
 
@@ -23,7 +23,7 @@ DIRS = tuple(set([str(Path(p).parent)
                   if len(Path(p).parts) > 1]))
 
 
-def set_path(model: tree_select.CheckableFileSystemModel, path: Path,
+def set_path(model: treeselect.CheckableFileSystemModel, path: Path,
              state: int):
     'Set a path in the CheckableFilesystemModel model'
     index = model.index(str(path))
@@ -48,7 +48,7 @@ def tmp_root_dir():
 def test_dirtree():
     'Test DirTree class'
     path_strs = ('a', 'b/c', 'b/d')
-    tree = tree_select.DirTree(path_strs)
+    tree = treeselect.DirTree(path_strs)
 
     paths = [Path(p) for p in path_strs]
 
@@ -64,13 +64,13 @@ def test_dirtree():
         tree.insert(path)
         assert tree.check(path)
 
-    with pytest.raises(tree_select.PathConflict):
+    with pytest.raises(treeselect.PathConflict):
         tree.insert(Path('b/c/d'))
 
 
 def test_model_qtmodeltester(qtmodeltester):
     'Basic checks on CheckableFileSystemModel'
-    model = tree_select.CheckableFileSystemModel(preselection=DIRS[:-1],
+    model = treeselect.CheckableFileSystemModel(preselection=DIRS[:-1],
                                                  track_selection_size=False)
     qtmodeltester.check(model)
 
@@ -81,7 +81,7 @@ def test_preselection(tmp_root_dir, qtbot):
     qtbot.addWidget(dialog)
 
     preselection = DIRS[:-1]
-    model = tree_select.CheckableFileSystemModel(parent=dialog,
+    model = treeselect.CheckableFileSystemModel(parent=dialog,
                                                  preselection=preselection,
                                                  track_selection_size=False)
 
@@ -106,7 +106,7 @@ def test_selection(tmp_root_dir, qtbot):
     dialog = QtWidgets.QDialog()
     qtbot.addWidget(dialog)
 
-    model = tree_select.CheckableFileSystemModel(parent=dialog,
+    model = treeselect.CheckableFileSystemModel(parent=dialog,
                                                  track_selection_size=False)
     model.setRootPath(str(tmp_root_dir))
     # Select files
@@ -138,7 +138,7 @@ def test_partial_selection(tmp_root_dir, qtbot):
     dialog = QtWidgets.QDialog()
     qtbot.addWidget(dialog)
 
-    model = tree_select.CheckableFileSystemModel(parent=dialog,
+    model = treeselect.CheckableFileSystemModel(parent=dialog,
                                                  track_selection_size=False)
     model.setRootPath(str(tmp_root_dir))
 
@@ -175,7 +175,7 @@ def test_main_dialog(tmp_root_dir, qtbot):
     selection = tempfile.NamedTemporaryFile('w')
     selection.write(FILES[0])
     selection.seek(0)
-    dialog = tree_select.main_dialog(args_in=['-p', str(tmp_root_dir),
+    dialog = treeselect.main_dialog(args_in=['-p', str(tmp_root_dir),
                                               '-s', selection.name])
     qtbot.addWidget(dialog)
     with qtbot.waitSignal(dialog.model.preselectionProcessed, timeout=None):
@@ -199,7 +199,7 @@ def test_main_dialog(tmp_root_dir, qtbot):
 
 def test_model_no_parent(tmp_root_dir, qtbot):
     'Test no error for model without parent if shut down cleanly'
-    model = tree_select.CheckableFileSystemModel()
+    model = treeselect.CheckableFileSystemModel()
     model.setRootPath(str(tmp_root_dir))
 
     with qtbot.waitSignal(model.tracker_thread.finished, timeout=None):
@@ -208,7 +208,7 @@ def test_model_no_parent(tmp_root_dir, qtbot):
 
 def test_track_size(tmp_root_dir, qtbot):
     'Test no error for model without parent if shut down cleanly'
-    model = tree_select.CheckableFileSystemModel()
+    model = treeselect.CheckableFileSystemModel()
     model.setRootPath(str(tmp_root_dir))
 
     for file_ in FILES:
@@ -250,13 +250,13 @@ def test_dir_size_fetcher(tmp_root_dir, qtbot):
             continue
         inter_dir_count += 1
 
-    model = tree_select.CheckableFileSystemModel(track_selection_size=False)
+    model = treeselect.CheckableFileSystemModel(track_selection_size=False)
     model.setRootPath(str(tmp_root_dir))
     qtbot.addWidget(model)
 
     set_path(model, tmp_root_dir / dir_, QtCore.Qt.Checked)
 
-    fetcher = tree_select.DirSizeFetcher(model)
+    fetcher = treeselect.DirSizeFetcher(model)
     qtbot.addWidget(fetcher)
     # Test intermediate dir
     # import pudb; pudb.set_trace()
@@ -274,7 +274,7 @@ def test_dir_size_fetcher(tmp_root_dir, qtbot):
 
 def test_output(tmp_root_dir, qtbot, capsys):
     'Test dialog prints out the right selection at end'
-    dialog = tree_select.main_dialog(args_in=['-p', str(tmp_root_dir)])
+    dialog = treeselect.main_dialog(args_in=['-p', str(tmp_root_dir)])
     qtbot.addWidget(dialog)
     with qtbot.waitSignal(dialog.model.tracker_thread.finished, timeout=None):
         for file_ in FILES:
