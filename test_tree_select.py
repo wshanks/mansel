@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 import tree_select  # NOQA
 
 
-FILES = ('f0', 'd0/f0', 'd1/d0/d0/f0', 'd1/d0/d0/f1')
+FILES = ('f0', 'd0/f1', 'd1/d2/d3/f2', 'd1/d2/d3/f3', 'd1/d4/d5/f4')
 FILESIZE = 10000
 DIRS = tuple(set([str(Path(p).parent)
                   for p in FILES
