@@ -7,13 +7,14 @@ paths.
 import os
 from pathlib import Path
 import sys
-from typing import Any, Dict, List, Optional, Set
+import typing as t
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 
 def debug_trace():  # pragma: no cover
     '''Set a tracepoint in the Python debugger that works with Qt'''
+    sys.stdin = open('/dev/tty')
     from PyQt5.QtCore import pyqtRemoveInputHook
     from pudb import set_trace
     pyqtRemoveInputHook()
@@ -31,7 +32,7 @@ class DirTree:
     "root" property points ot root of tree which is a dict point to
     other dicts. Endpoints in the tree are represented by empty dicts.
     '''
-    def __init__(self, paths: List[str]) -> None:
+    def __init__(self, paths: t.Iterable[str]) -> None:
         self.root = DirTreeItem()
         for path in paths:
             self.insert(Path(path))
@@ -91,7 +92,7 @@ class DirTreeItem(dict):
     '''
     def __init__(self, *args,
                  name: str = '',
-                 parent: Optional['DirTreeItem'] = None,
+                 parent: t.Optional['DirTreeItem'] = None,
                  **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -114,7 +115,7 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
 
     def __init__(self,
                  parent: QtCore.QObject = None,
-                 preselection: Optional[List[str]] = None,
+                 preselection: t.Optional[t.Iterable[str]] = None,
                  track_selection_size: bool = True) -> None:
         'preselection: list of paths relative to rootPath to pre-select'
         super().__init__(parent=parent)
@@ -123,13 +124,13 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
             self.directoryLoaded.connect(self._handle_preselection)
         else:
             self.preselection = None
-        self.selected: Set[QtCore.QPersistentModelIndex] = set()
-        self.ancestors: Set[QtCore.QPersistentModelIndex] = set()
+        self.selected: t.Set[QtCore.QPersistentModelIndex] = set()
+        self.ancestors: t.Set[QtCore.QPersistentModelIndex] = set()
 
         self.track_selection_size = track_selection_size
         self.tracker_thread = None
         self.tracker = None
-        self.dir_size_cache: Dict[str, int] = {}
+        self.dir_size_cache: t.Dict[str, int] = {}
         if track_selection_size:
             self.tracker = DirSizeFetcher(self)
             self.tracker_thread = QtCore.QThread()
@@ -168,6 +169,7 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
                     self.directoryLoaded.disconnect(self._handle_preselection)
                     self.preselectionProcessed.emit()
             elif status == 'parent' and self.isDir(child):
+                print('yes!')
                 self.fetchMore(child)
 
     def flags(self, index: QtCore.QModelIndex) -> int:
@@ -177,7 +179,7 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
 
         return super().flags(index) | QtCore.Qt.ItemIsUserCheckable
 
-    def data(self, index: QtCore.QModelIndex, role: int) -> Any:
+    def data(self, index: QtCore.QModelIndex, role: int) -> t.Any:
         'Data for given model index and role'
         # Override parent class method to handle checkboxes
         if role == QtCore.Qt.CheckStateRole and index.column() == 0:
@@ -207,7 +209,7 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
         return False
 
     def setData(self,  # pylint: disable=invalid-name
-                index: QtCore.QModelIndex, value: Any,
+                index: QtCore.QModelIndex, value: t.Any,
                 role: int) -> bool:
         'Set model data for index'
         # Override parent class method to handle checkboxes
@@ -387,7 +389,7 @@ class DirSizeFetcher(QtCore.QObject):
 
 class UIDialog(QtWidgets.QDialog):
     'Dialog window illustrating use of Checkablefilesystemmodel class'
-    def __init__(self, root_path: str, selection: List[str] = None,
+    def __init__(self, root_path: str, selection: t.List[str] = None,
                  parent: QtCore.QObject = None) -> None:
         QtWidgets.QDialog.__init__(self, parent)
 
@@ -481,15 +483,26 @@ def parse_options(args_in=None):
                      'output as a list'))
     parser.add_argument('--path', '-p', help='Root path',
                         default='.')
-    parser.add_argument('selection', nargs='*')
-    return parser.parse_args(args_in)
+    parser.add_argument('--selection', '-s', type=str, default='',
+                        help='File with paths to select on startup')
+    args = parser.parse_args(args_in)
+
+    if args.selection == '-':  # pragma: no cover
+        selection = sys.stdin.read().splitlines()
+    elif args.selection:
+        with open(args.selection, 'r') as file_:
+            selection = file_.read().splitlines()
+    else:
+        selection = None
+
+    return args.path, selection
 
 
 def main_dialog(args_in=None):
     'Main function'
-    args = parse_options(args_in)
-    dialog = UIDialog(root_path=args.path,
-                      selection=args.selection)
+    path, selection = parse_options(args_in)
+    dialog = UIDialog(root_path=path,
+                      selection=selection)
     dialog.show()
     return dialog
 
@@ -497,5 +510,5 @@ def main_dialog(args_in=None):
 if __name__ == "__main__":  # pragma: no cover
     app = QtWidgets.QApplication([])
     # Need to store dialog in variable the dialog widget gets garbage collected
-    dialog = main_dialog()
+    dialog_handle = main_dialog()
     sys.exit(app.exec_())

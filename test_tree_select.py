@@ -165,8 +165,22 @@ def test_partial_selection(tmp_root_dir, qtbot):
 
 def test_main_dialog(tmp_root_dir, qtbot):
     'Test main app does not crash'
-    dialog = tree_select.main_dialog(args_in=['-p', str(tmp_root_dir)])
+    selection = tempfile.NamedTemporaryFile('w')
+    selection.write(FILES[0])
+    selection.seek(0)
+    dialog = tree_select.main_dialog(args_in=['-p', str(tmp_root_dir),
+                                              '-s', selection.name])
     qtbot.addWidget(dialog)
+    with qtbot.waitSignal(dialog.model.preselectionProcessed, timeout=None):
+        dialog.model.setRootPath(str(tmp_root_dir))
+    # Absolute paths
+    selected_paths = [dialog.model.filePath(QtCore.QModelIndex(i))
+                      for i in dialog.model.selected]
+    # Relative paths as strings
+    selected_paths = [str(Path(p).relative_to(dialog.model.rootPath()))
+                      for p in selected_paths]
+    assert set(selected_paths) == set([FILES[0]])
+
     with qtbot.waitSignal(dialog.model.tracker_thread.finished, timeout=None):
         # Run through main methods to make sure they don't crash
         # (i.e. this doesn't validate that they do the right thing!)
