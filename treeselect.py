@@ -12,15 +12,6 @@ import typing as t
 from PyQt5 import QtCore, QtWidgets, QtGui
 
 
-def debug_trace():  # pragma: no cover
-    '''Set a tracepoint in the Python debugger that works with Qt'''
-    sys.stdin = open('/dev/tty')
-    from PyQt5.QtCore import pyqtRemoveInputHook
-    from pudb import set_trace
-    pyqtRemoveInputHook()
-    set_trace()
-
-
 class PathConflict(Exception):
     'Exception raised by inconsistent paths in a DirTree'
     pass
