@@ -9,7 +9,17 @@ from pathlib import Path
 import sys
 import typing as t
 
-from PyQt5 import QtCore, QtWidgets, QtGui
+try:
+    from PySide2 import QtCore, QtWidgets, QtGui
+    Signal = QtCore.Signal
+    Slot = QtCore.Slot
+except ImportError:
+    try:
+        from PyQt5 import QtCore, QtWidgets, QtGui
+        Signal = QtCore.pyqtSignal
+        Slot = QtCore.pyqtSlot
+    except ImportError:
+        raise ImportError('Either PySide2 or PyQt5 required!') from None
 
 
 class PathConflict(Exception):
@@ -99,10 +109,10 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
     'ancestors' property.
     '''
 
-    preselectionProcessed = QtCore.pyqtSignal()
-    newDirSelected = QtCore.pyqtSignal(str)
-    recalculatingSize = QtCore.pyqtSignal()
-    newSelectionSize = QtCore.pyqtSignal(int)
+    preselectionProcessed = QtCore.Signal()
+    newDirSelected = QtCore.Signal(str)
+    recalculatingSize = QtCore.Signal()
+    newSelectionSize = QtCore.Signal(int)
 
     def __init__(self,
                  parent: QtCore.QObject = None,
@@ -296,7 +306,7 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
 
         self.newSelectionSize.emit(size)
 
-    @QtCore.pyqtSlot(str, int)
+    @QtCore.Slot(str, int)
     def _update_dir_size_cache(self, path: str, size: int) -> None:
         'Update cache entry for path'
         self.dir_size_cache[path] = size
@@ -311,7 +321,7 @@ class DirFetcherNode(dict):
 
 class DirSizeFetcher(QtCore.QObject):
     'Class to track size of file system selection'
-    resultReady = QtCore.pyqtSignal(str, int)
+    resultReady = QtCore.Signal(str, int)
 
     def __init__(self, model: CheckableFileSystemModel) -> None:
         super().__init__()
@@ -346,7 +356,7 @@ class DirSizeFetcher(QtCore.QObject):
 
         return pointer
 
-    @QtCore.pyqtSlot(str)
+    @QtCore.Slot(str)
     def fetch_size(self, path: str) -> None:
         'Determine the size of directory path and emit resultReady signal'
         pointer = self._get_pointer(Path(path))
@@ -430,7 +440,7 @@ class UIDialog(QtWidgets.QDialog):
         QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+Return"), self,
                             self.print_selection_and_close)
 
-    @QtCore.pyqtSlot()
+    @QtCore.Slot()
     def indicate_calculating(self) -> None:
         'Indicate that selection size is being recalculated'
         locale = QtCore.QLocale()
@@ -440,7 +450,7 @@ class UIDialog(QtWidgets.QDialog):
         self.size_box.setText(fmt.format(human_size))
         self.size_box.repaint()
 
-    @QtCore.pyqtSlot(int)
+    @QtCore.Slot(int)
     def update_size(self, size: int) -> None:
         'Update label showing selection size'
         self.selection_size = size
@@ -452,12 +462,12 @@ class UIDialog(QtWidgets.QDialog):
         self.size_box.setText(msg)
         self.size_box.repaint()
 
-    @QtCore.pyqtSlot()
+    @QtCore.Slot()
     def update_view(self) -> None:
         'Refresh UI'
         self.tree.viewport().update()
 
-    @QtCore.pyqtSlot()
+    @QtCore.Slot()
     def print_selection_and_close(self) -> None:
         'Print newline delimited paths of selected items and close dialog'
         for item in self.model.selected:

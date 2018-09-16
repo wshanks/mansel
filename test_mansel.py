@@ -5,8 +5,13 @@ from pathlib import Path
 import sys
 import tempfile
 
-# from PyQt5 import QtCore, QtWidgets
-from PySide2 import QtCore, QtWidgets
+try:
+    from PySide2 import QtCore, QtWidgets
+except ImportError:
+    try:
+        from PyQt5 import QtCore, QtWidgets
+    except ImportError:
+        raise ImportError('Either PySide2 or PyQt5 required!') from None
 import pytest
 
 
