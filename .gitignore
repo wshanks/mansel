@@ -6,3 +6,6 @@ __pycache__
 .coverage
 htmlcov/
 .backups
+*.egg-info
+build/
+dist/

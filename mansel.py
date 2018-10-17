@@ -508,8 +508,13 @@ def main_dialog(args_in=None):
     return dialog
 
 
-if __name__ == "__main__":  # pragma: no cover
+def main():
+    'Main function when run as a sript'
     app = QtWidgets.QApplication([])
     # Need to store dialog in variable the dialog widget gets garbage collected
     dialog_handle = main_dialog()
     sys.exit(app.exec_())
+
+
+if __name__ == "__main__":  # pragma: no cover
+    main()

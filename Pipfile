@@ -1,0 +1,21 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+mansel = {editable = true, path = "."}
+
+[dev-packages]
+mypy = "*"
+pytest = "*"
+coverage = "*"
+pytest-cov = "*"
+pylint = "*"
+pycodestyle = "*"
+pytest-pudb = "*"
+setuptools = "*"
+wheel = "*"
+twine = "*"
+pytest-qt = "*"
+"pyside2" = "*"
