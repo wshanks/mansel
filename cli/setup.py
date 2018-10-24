@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="mansel-cli",
-    version="0.0.1",
+    version="0.0.2",
     author="https://github.com/willsALMANJ",
     author_email="wsha.code@gmail.com",
     description="Tool for manual file selection",
