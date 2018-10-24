@@ -15,7 +15,7 @@
 
     pip install mansel-cli
 
-This will install [mansel](XXX) along with PySide2.
+This will install [mansel](https://pypi.org/project/mansel/) along with PySide2.
 
 ## Usage
 
