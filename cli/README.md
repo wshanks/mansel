@@ -31,7 +31,7 @@ where `PATH` is the root path to use for file selection and `SELECTION` is a fil
 * A running tally of the current selection size is shown at the bottom of the window. The calculation is performed on a background thread. The size total is followed by "(Calculating)" while the selection size is being re-tallied.
 * `Cancel`, `Ctrl+W`, `Ctrl+Q` all close the window without printing to `stdout`.
 * `Ctrl+Enter` is equivalent to pressing `OK`.
-* `mansel-cli` is a wrapper for `mansel`. Effectively, installing `mansel-cli` instealls `mansel` and `PySide2` (`mansel` does list `PySide2` as a dependency to allow it to be used with `PyQt5 as well) and sets up a wrapper sript that calls `python -m mansel`.
+* `mansel-cli` is a wrapper for `mansel`. Effectively, installing `mansel-cli` instealls `mansel` and `PySide2` (`mansel` does not list `PySide2` as a dependency to allow it to be used with `PyQt5` as well) and sets up a wrapper sript that calls `python -m mansel`.
 
 ## Contributing
 
