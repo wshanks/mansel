@@ -5,8 +5,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="mansel-cli",
-    version="0.0.2",
+    name="mansel",
+    version="0.0.3",
     author="https://github.com/willsALMANJ",
     author_email="wsha.code@gmail.com",
     description="Tool for manual file selection",
@@ -17,7 +17,7 @@ setuptools.setup(
         'console_scripts': ['mansel=mansel:main']},
     packages=[],
     py_modules=[],
-    install_requires=['PySide2', 'mansel'],
+    install_requires=['PySide2', 'mansel-lib'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",
