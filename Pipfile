@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-mansel = {editable = true, path = "."}
+mansel-lib = {editable = true, path = "./lib"}
 
 [dev-packages]
 mypy = "*"
