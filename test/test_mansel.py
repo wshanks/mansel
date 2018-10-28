@@ -9,13 +9,10 @@ try:
     from PySide2 import QtCore, QtWidgets
 except ImportError:
     try:
-        from PyQt5 import QtCore, QtWidgets
+        from manselqtshim import QtCore, QtWidgets
     except ImportError:
-        raise ImportError('Either PySide2 or PyQt5 required!') from None
+        raise ImportError('PySide2 or other Qt binding required!') from None
 import pytest
-
-
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 
 # pylint: disable=wrong-import-position
