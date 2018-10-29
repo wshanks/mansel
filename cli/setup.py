@@ -6,7 +6,7 @@ with open("../README.md", "r") as fh:
 
 setuptools.setup(
     name="mansel",
-    version="0.0.3",
+    version="0.1.0",
     author="https://github.com/willsALMANJ",
     author_email="wsha.code@gmail.com",
     description="Tool for manual file selection",

@@ -1,4 +1,4 @@
-'Test mansel module'
+"Test mansel module"
 from collections import Counter
 import os
 from pathlib import Path
@@ -11,25 +11,23 @@ except ImportError:
     try:
         from manselqtshim import QtCore, QtWidgets
     except ImportError:
-        raise ImportError('PySide2 or other Qt binding required!') from None
+        raise ImportError("PySide2 or other Qt binding required!") from None
 import pytest
 
 
 # pylint: disable=wrong-import-position
 import mansel  # NOQA
+
 # pylint: enable=wrong-import-position
 
 
-FILES = ('f0', 'd0/f1', 'd1/d2/d3/f2', 'd1/d2/d3/f3', 'd1/d4/d5/f4')
+FILES = ("f0", "d0/f1", "d1/d2/d3/f2", "d1/d2/d3/f3", "d1/d4/d5/f4")
 FILESIZE = 10000
-DIRS = tuple(set([str(Path(p).parent)
-                  for p in FILES
-                  if len(Path(p).parts) > 1]))
+DIRS = tuple(set([str(Path(p).parent) for p in FILES if len(Path(p).parts) > 1]))
 
 
-def set_path(model: mansel.CheckableFileSystemModel, path: Path,
-             state: int):
-    'Set a path in the CheckableFilesystemModel model'
+def set_path(model: mansel.CheckableFileSystemModel, path: Path, state: int):
+    "Set a path in the CheckableFilesystemModel model"
     index = model.index(str(path))
     model.setData(index, state, QtCore.Qt.CheckStateRole)
 
@@ -37,39 +35,39 @@ def set_path(model: mansel.CheckableFileSystemModel, path: Path,
 # pylint: disable=redefined-outer-name
 @pytest.fixture
 def tmp_root_dir():
-    'Temporary file hierarchy for CheckableFileSystemModel'
+    "Temporary file hierarchy for CheckableFileSystemModel"
     base = Path(tempfile.TemporaryDirectory().name)
     for dir_ in DIRS:
         (base / dir_).mkdir(parents=True)
     for file_ in FILES:
-        with open(base / file_, 'wb') as fhandle:
+        with open(base / file_, "wb") as fhandle:
             fhandle.seek(FILESIZE - 1)
-            fhandle.write(b'\0')
+            fhandle.write(b"\0")
 
     yield base
 
 
 def test_dirtree():
-    'Test DirTree class'
-    path_strs = ('a', 'b/c', 'b/d')
+    "Test DirTree class"
+    path_strs = ("a", "b/c", "b/d")
     tree = mansel.DirTree(path_strs)
 
     paths = [Path(p) for p in path_strs]
 
-    assert tree.check(Path('b')) == 'parent'
+    assert tree.check(Path("b")) == "parent"
     for path in paths:
-        assert tree.check(path) == 'leaf'
+        assert tree.check(path) == "leaf"
 
     for path in paths:
         tree.remove(path)
-        assert tree.check(path) == 'unselected'
+        assert tree.check(path) == "unselected"
 
     for path in paths:
         tree.insert(path)
         assert tree.check(path)
 
     with pytest.raises(mansel.PathConflict):
-        tree.insert(Path('b/c/d'))
+        tree.insert(Path("b/c/d"))
 
 
 # This test fails in horrible ways, and I am not sure why
@@ -84,14 +82,14 @@ def test_dirtree():
 
 
 def test_preselection(tmp_root_dir, qtbot):
-    'Test preselecting items in CheckableFilesystemModel'
+    "Test preselecting items in CheckableFilesystemModel"
     dialog = QtWidgets.QDialog()
     qtbot.addWidget(dialog)
 
     preselection = DIRS[:-1]
-    model = mansel.CheckableFileSystemModel(parent=dialog,
-                                                 preselection=preselection,
-                                                 track_selection_size=False)
+    model = mansel.CheckableFileSystemModel(
+        parent=dialog, preselection=preselection, track_selection_size=False
+    )
 
     assert all(model.preselection.check(Path(p)) for p in preselection)
 
@@ -101,21 +99,20 @@ def test_preselection(tmp_root_dir, qtbot):
 
     assert not model.preselection.root
     # Absolute paths
-    selected_paths = [model.filePath(QtCore.QModelIndex(i))
-                      for i in model.selected]
+    selected_paths = [model.filePath(QtCore.QModelIndex(i)) for i in model.selected]
     # Relative paths as strings
-    selected_paths = [str(Path(p).relative_to(model.rootPath()))
-                      for p in selected_paths]
+    selected_paths = [
+        str(Path(p).relative_to(model.rootPath())) for p in selected_paths
+    ]
     assert set(selected_paths) == set(preselection)
 
 
 def test_selection(tmp_root_dir, qtbot):
-    'Test basic item selection'
+    "Test basic item selection"
     dialog = QtWidgets.QDialog()
     qtbot.addWidget(dialog)
 
-    model = mansel.CheckableFileSystemModel(parent=dialog,
-                                                 track_selection_size=False)
+    model = mansel.CheckableFileSystemModel(parent=dialog, track_selection_size=False)
     model.setRootPath(str(tmp_root_dir))
     # Select files
     for file_ in FILES:
@@ -130,8 +127,7 @@ def test_selection(tmp_root_dir, qtbot):
         set_path(model, tmp_root_dir / file_, QtCore.Qt.Unchecked)
     for file_ in FILES:
         index = model.index(str(tmp_root_dir / file_))
-        assert (model.data(index, QtCore.Qt.CheckStateRole) ==
-                QtCore.Qt.Unchecked)
+        assert model.data(index, QtCore.Qt.CheckStateRole) == QtCore.Qt.Unchecked
     assert not model.selected
 
     # Test selecting something twice
@@ -142,18 +138,19 @@ def test_selection(tmp_root_dir, qtbot):
 
 
 def test_partial_selection(tmp_root_dir, qtbot):
-    'Test ancesotrs/descendants are partially selected'
+    "Test ancesotrs/descendants are partially selected"
     dialog = QtWidgets.QDialog()
     qtbot.addWidget(dialog)
 
-    model = mansel.CheckableFileSystemModel(parent=dialog,
-                                                 track_selection_size=False)
+    model = mansel.CheckableFileSystemModel(parent=dialog, track_selection_size=False)
     model.setRootPath(str(tmp_root_dir))
 
     deep_file = Path(max(FILES, key=lambda x: len(Path(x).parts)))
     assert len(deep_file.parts) >= 3
-    paths = [Path('.').joinpath(*deep_file.parts[:depth])
-             for depth, _ in enumerate(deep_file.parts, 1)]
+    paths = [
+        Path(".").joinpath(*deep_file.parts[:depth])
+        for depth, _ in enumerate(deep_file.parts, 1)
+    ]
     # Check each path part and make sure all parents/children are
     # partially checked
     for depth, part in enumerate(paths):
@@ -161,11 +158,12 @@ def test_partial_selection(tmp_root_dir, qtbot):
         for depth_, part_ in enumerate(paths):
             index = model.index(str(tmp_root_dir / part_))
             if depth == depth_:
-                assert (model.data(index, QtCore.Qt.CheckStateRole) ==
-                        QtCore.Qt.Checked)
+                assert model.data(index, QtCore.Qt.CheckStateRole) == QtCore.Qt.Checked
             else:
-                assert (model.data(index, QtCore.Qt.CheckStateRole) ==
-                        QtCore.Qt.PartiallyChecked)
+                assert (
+                    model.data(index, QtCore.Qt.CheckStateRole)
+                    == QtCore.Qt.PartiallyChecked
+                )
 
     # Check and uncheck each path part and make sure all
     # parents/children are unchecked
@@ -174,26 +172,26 @@ def test_partial_selection(tmp_root_dir, qtbot):
         set_path(model, str(tmp_root_dir / part), QtCore.Qt.Unchecked)
         for depth_, part_ in enumerate(paths):
             index = model.index(str(tmp_root_dir / part_))
-            assert (model.data(index, QtCore.Qt.CheckStateRole) ==
-                    QtCore.Qt.Unchecked)
+            assert model.data(index, QtCore.Qt.CheckStateRole) == QtCore.Qt.Unchecked
 
 
 def test_main_dialog(tmp_root_dir, qtbot):
-    'Test main app does not crash'
-    selection = tempfile.NamedTemporaryFile('w')
+    "Test main app does not crash"
+    selection = tempfile.NamedTemporaryFile("w")
     selection.write(FILES[0])
     selection.seek(0)
-    dialog = mansel.main_dialog(args_in=['-p', str(tmp_root_dir),
-                                              '-s', selection.name])
+    dialog = mansel.main_dialog(args_in=["-p", str(tmp_root_dir), "-s", selection.name])
     qtbot.addWidget(dialog)
     with qtbot.waitSignal(dialog.model.preselectionProcessed, timeout=None):
         dialog.model.setRootPath(str(tmp_root_dir))
     # Absolute paths
-    selected_paths = [dialog.model.filePath(QtCore.QModelIndex(i))
-                      for i in dialog.model.selected]
+    selected_paths = [
+        dialog.model.filePath(QtCore.QModelIndex(i)) for i in dialog.model.selected
+    ]
     # Relative paths as strings
-    selected_paths = [str(Path(p).relative_to(dialog.model.rootPath()))
-                      for p in selected_paths]
+    selected_paths = [
+        str(Path(p).relative_to(dialog.model.rootPath())) for p in selected_paths
+    ]
     assert set(selected_paths) == set([FILES[0]])
 
     with qtbot.waitSignal(dialog.model.tracker_thread.finished, timeout=None):
@@ -206,7 +204,7 @@ def test_main_dialog(tmp_root_dir, qtbot):
 
 
 def test_model_no_parent(tmp_root_dir, qtbot):
-    'Test no error for model without parent if shut down cleanly'
+    "Test no error for model without parent if shut down cleanly"
     model = mansel.CheckableFileSystemModel()
     model.setRootPath(str(tmp_root_dir))
 
@@ -215,7 +213,7 @@ def test_model_no_parent(tmp_root_dir, qtbot):
 
 
 def test_track_size(tmp_root_dir, qtbot):
-    'Test no error for model without parent if shut down cleanly'
+    "Test no error for model without parent if shut down cleanly"
     model = mansel.CheckableFileSystemModel()
     model.setRootPath(str(tmp_root_dir))
 
@@ -238,7 +236,7 @@ def test_track_size(tmp_root_dir, qtbot):
 
 
 def test_dir_size_fetcher(tmp_root_dir, qtbot):
-    'Test DirSizeFetcher can get directory sizes'
+    "Test DirSizeFetcher can get directory sizes"
     # Find top level directory with most files below it
     dirs = Counter(Path(f).parts[0] for f in FILES)
     dir_, count = dirs.most_common(1)[0]
@@ -281,8 +279,8 @@ def test_dir_size_fetcher(tmp_root_dir, qtbot):
 
 
 def test_output(tmp_root_dir, qtbot, capsys):
-    'Test dialog prints out the right selection at end'
-    dialog = mansel.main_dialog(args_in=['-p', str(tmp_root_dir)])
+    "Test dialog prints out the right selection at end"
+    dialog = mansel.main_dialog(args_in=["-p", str(tmp_root_dir)])
     qtbot.addWidget(dialog)
     with qtbot.waitSignal(dialog.model.tracker_thread.finished, timeout=None):
         for file_ in FILES:
