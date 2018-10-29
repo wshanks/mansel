@@ -93,7 +93,11 @@ class DirTreeItem(dict):
     """
 
     def __init__(
-        self, *args, name: str = "", parent: t.Optional["DirTreeItem"] = None, **kwargs
+        self,
+        *args,
+        name: str = "",
+        parent: t.Optional["DirTreeItem"] = None,
+        **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
 
@@ -194,7 +198,9 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
         persistent_index = QtCore.QPersistentModelIndex(index)
         if persistent_index in self.selected:
             return QtCore.Qt.Checked
-        elif persistent_index in self.ancestors or self._has_checked_ancestor(index):
+        elif persistent_index in self.ancestors or self._has_checked_ancestor(
+            index
+        ):
             return QtCore.Qt.PartiallyChecked
         # else
         return QtCore.Qt.Unchecked
@@ -222,7 +228,9 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
         return super().setData(index, value, role)
 
     def _setData(
-        self, index: QtCore.QModelIndex, value: int  # pylint: disable=invalid-name
+        self,
+        index: QtCore.QModelIndex,
+        value: int,  # pylint: disable=invalid-name
     ) -> bool:
         "Set checkbox status data and update ancestors/descendants"
         if self._data(index) == value:
@@ -265,12 +273,15 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
 
     def _uncheck_descendants(self, index: QtCore.QModelIndex) -> None:
         "Mark all descendants of index as unchecked"
-        queue = [index.child(i, index.column()) for i in range(self.rowCount(index))]
+        queue = [
+            index.child(i, index.column()) for i in range(self.rowCount(index))
+        ]
         while queue:
             item = queue.pop()
             self._set_check_state(item, QtCore.Qt.Unchecked)
             queue.extend(
-                item.child(i, index.column()) for i in range(self.rowCount(item))
+                item.child(i, index.column())
+                for i in range(self.rowCount(item))
             )
 
     def _uncheck_exclusive_ancestors(self, index: QtCore.QModelIndex) -> None:
@@ -449,7 +460,9 @@ class UIDialog(QtWidgets.QDialog):
         QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+Q"), self, self.close)
         QtWidgets.QShortcut(QtGui.QKeySequence("Ctrl+W"), self, self.close)
         QtWidgets.QShortcut(
-            QtGui.QKeySequence("Ctrl+Return"), self, self.print_selection_and_close
+            QtGui.QKeySequence("Ctrl+Return"),
+            self,
+            self.print_selection_and_close,
         )
 
     @Slot()
@@ -469,7 +482,9 @@ class UIDialog(QtWidgets.QDialog):
         self.selection_size = size
 
         locale = QtCore.QLocale()
-        human_size = locale.formattedDataSize(size, format=locale.DataSizeSIFormat)
+        human_size = locale.formattedDataSize(
+            size, format=locale.DataSizeSIFormat
+        )
         msg = "Selection size: {}".format(human_size)
         self.size_box.setText(msg)
         self.size_box.repaint()

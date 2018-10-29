@@ -23,7 +23,9 @@ import mansel  # NOQA
 
 FILES = ("f0", "d0/f1", "d1/d2/d3/f2", "d1/d2/d3/f3", "d1/d4/d5/f4")
 FILESIZE = 10000
-DIRS = tuple(set([str(Path(p).parent) for p in FILES if len(Path(p).parts) > 1]))
+DIRS = tuple(
+    set([str(Path(p).parent) for p in FILES if len(Path(p).parts) > 1])
+)
 
 
 def set_path(model: mansel.CheckableFileSystemModel, path: Path, state: int):
@@ -99,7 +101,9 @@ def test_preselection(tmp_root_dir, qtbot):
 
     assert not model.preselection.root
     # Absolute paths
-    selected_paths = [model.filePath(QtCore.QModelIndex(i)) for i in model.selected]
+    selected_paths = [
+        model.filePath(QtCore.QModelIndex(i)) for i in model.selected
+    ]
     # Relative paths as strings
     selected_paths = [
         str(Path(p).relative_to(model.rootPath())) for p in selected_paths
@@ -112,7 +116,9 @@ def test_selection(tmp_root_dir, qtbot):
     dialog = QtWidgets.QDialog()
     qtbot.addWidget(dialog)
 
-    model = mansel.CheckableFileSystemModel(parent=dialog, track_selection_size=False)
+    model = mansel.CheckableFileSystemModel(
+        parent=dialog, track_selection_size=False
+    )
     model.setRootPath(str(tmp_root_dir))
     # Select files
     for file_ in FILES:
@@ -127,7 +133,9 @@ def test_selection(tmp_root_dir, qtbot):
         set_path(model, tmp_root_dir / file_, QtCore.Qt.Unchecked)
     for file_ in FILES:
         index = model.index(str(tmp_root_dir / file_))
-        assert model.data(index, QtCore.Qt.CheckStateRole) == QtCore.Qt.Unchecked
+        assert (
+            model.data(index, QtCore.Qt.CheckStateRole) == QtCore.Qt.Unchecked
+        )
     assert not model.selected
 
     # Test selecting something twice
@@ -142,7 +150,9 @@ def test_partial_selection(tmp_root_dir, qtbot):
     dialog = QtWidgets.QDialog()
     qtbot.addWidget(dialog)
 
-    model = mansel.CheckableFileSystemModel(parent=dialog, track_selection_size=False)
+    model = mansel.CheckableFileSystemModel(
+        parent=dialog, track_selection_size=False
+    )
     model.setRootPath(str(tmp_root_dir))
 
     deep_file = Path(max(FILES, key=lambda x: len(Path(x).parts)))
@@ -158,7 +168,10 @@ def test_partial_selection(tmp_root_dir, qtbot):
         for depth_, part_ in enumerate(paths):
             index = model.index(str(tmp_root_dir / part_))
             if depth == depth_:
-                assert model.data(index, QtCore.Qt.CheckStateRole) == QtCore.Qt.Checked
+                assert (
+                    model.data(index, QtCore.Qt.CheckStateRole)
+                    == QtCore.Qt.Checked
+                )
             else:
                 assert (
                     model.data(index, QtCore.Qt.CheckStateRole)
@@ -172,7 +185,10 @@ def test_partial_selection(tmp_root_dir, qtbot):
         set_path(model, str(tmp_root_dir / part), QtCore.Qt.Unchecked)
         for depth_, part_ in enumerate(paths):
             index = model.index(str(tmp_root_dir / part_))
-            assert model.data(index, QtCore.Qt.CheckStateRole) == QtCore.Qt.Unchecked
+            assert (
+                model.data(index, QtCore.Qt.CheckStateRole)
+                == QtCore.Qt.Unchecked
+            )
 
 
 def test_main_dialog(tmp_root_dir, qtbot):
@@ -180,17 +196,21 @@ def test_main_dialog(tmp_root_dir, qtbot):
     selection = tempfile.NamedTemporaryFile("w")
     selection.write(FILES[0])
     selection.seek(0)
-    dialog = mansel.main_dialog(args_in=["-p", str(tmp_root_dir), "-s", selection.name])
+    dialog = mansel.main_dialog(
+        args_in=["-p", str(tmp_root_dir), "-s", selection.name]
+    )
     qtbot.addWidget(dialog)
     with qtbot.waitSignal(dialog.model.preselectionProcessed, timeout=None):
         dialog.model.setRootPath(str(tmp_root_dir))
     # Absolute paths
     selected_paths = [
-        dialog.model.filePath(QtCore.QModelIndex(i)) for i in dialog.model.selected
+        dialog.model.filePath(QtCore.QModelIndex(i))
+        for i in dialog.model.selected
     ]
     # Relative paths as strings
     selected_paths = [
-        str(Path(p).relative_to(dialog.model.rootPath())) for p in selected_paths
+        str(Path(p).relative_to(dialog.model.rootPath()))
+        for p in selected_paths
     ]
     assert set(selected_paths) == set([FILES[0]])
 
