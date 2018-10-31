@@ -40,7 +40,7 @@ where `PATH` is the root path to use for file selection and `SELECTION` is a fil
 * A running tally of the current selection size is shown at the bottom of the window. The calculation is performed on a background thread. The size total is followed by "(Calculating)" while the selection size is being re-tallied.
 * `Cancel`, `Ctrl+W`, `Ctrl+Q` all close the window without printing to `stdout`.
 * `Ctrl+Enter` is equivalent to pressing `OK`.
-* `mansel-cli` is a wrapper for `mansel`. Effectively, installing `mansel-cli` instealls `mansel` and `PySide2` (`mansel` does not list `PySide2` as a dependency to allow it to be used with `PyQt5` as well) and sets up a wrapper sript that calls `python -m mansel`.
+* ``mansel` depends on `mansel-lib` which holds all of the logic. `mansel` itself just provides the command line entry point and depends explicitly on PySide2. `mansel-lib` does not depend on either PyQt5 or PySide2, so it can be installed with `pip` to work with either Qt binding library.
 
 ## API
 
@@ -83,6 +83,5 @@ If you make improvements to `mansel`, please share them if sharing is feasible.
   - Add UI tests that click on checkboxes and buttons
 
 * Improve packaging:
-  - Create PyPI package
   - Create conda package
   - Create other packages (PyInstaller? Linux snap package?)
