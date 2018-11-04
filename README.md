@@ -1,5 +1,8 @@
 # mansel
 
+[![image](https://img.shields.io/pypi/v/mansel.svg)](https://pypi.org/project/mansel/)
+[![image](https://img.shields.io/pypi/l/mansel.svg)](https://pypi.org/project/mansel/)
+[![image](https://img.shields.io/pypi/pyversions/mansel.svg)](https://pypi.org/project/mansel/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 
 `mansel` is a Python library and command line tool for manually selecting files and directories from a tree view.
@@ -22,7 +25,7 @@ Alternatively, the `mansel` command line tool can be installed with
 
     pip install mansel-pyqt
 
-[mansel-pyqt](https://github.com/willsALMANJ/mansel-pyqt) depends on `PyQt5` and requires that the Qt runtime be installed separately.
+[mansel-pyqt](https://pypi.org/project/mansel-pyqt/) depends on `PyQt5` and requires that the Qt runtime be installed separately.
 
 Both `mansel` and `mansel-pyqt` depend on the `mansel-lib` package which can be installed directly if you want to use `mansel`'s features in another project without installing the command line tool.
 

@@ -16,7 +16,9 @@ try:
     Slot = QtCore.Slot
 except ImportError:
     try:
-        from manselqtshim import QtCore, QtWidgets, QtGui, Signal, Slot
+        from PyQt5 import QtCore, QtWidgets, QtGui
+        Signal = QtCore.pyqtSignal
+        Slot = QtCore.pyqtSlot
     except ImportError:
         raise ImportError("PySide2 or other Qt binding required!") from None
 

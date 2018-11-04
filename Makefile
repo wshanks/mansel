@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := all
 
-all: lib cli
+all: lib cli pyqt-cli
 
 init:
 	pipenv install --dev --skip-lock
@@ -11,10 +11,13 @@ lib:
 cli:
 	cd cli && pipenv run python setup.py sdist bdist_wheel
 
+pyqt-cli:
+	cd pyqt-cli && pipenv run python setup.py sdist bdist_wheel
+
 test:
 	pipenv run pytest
 
-release: release-lib release-cli
+release: release-lib release-cli release-pyqt-cli
 
 release-lib:
 	pipenv run twine upload lib/dist/*
@@ -22,8 +25,12 @@ release-lib:
 release-cli:
 	pipenv run twine upload cli/dist/*
 
+release-pyqt-cli:
+	pipenv run twine upload pyqt-cli/dist/*
+
 clean:
 	cd lib && rm -rf build dist mansel.egg-info
 	cd cli && rm -rf build dist mansel-cli.egg-info
+	cd pyqt-cli && rm -rf build dist mansel-pyqt.egg-info
 
-.PHONY: all clean lib cli release release-lib release-cli test
+.PHONY: all clean lib cli pyqt-cli release release-lib release-cli release-pyqt-cli test

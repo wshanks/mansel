@@ -9,7 +9,7 @@ try:
     from PySide2 import QtCore, QtWidgets
 except ImportError:
     try:
-        from manselqtshim import QtCore, QtWidgets
+        from PyQt5 import QtCore, QtWidgets
     except ImportError:
         raise ImportError("PySide2 or other Qt binding required!") from None
 import pytest
