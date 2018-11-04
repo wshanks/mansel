@@ -185,7 +185,7 @@ class CheckableFileSystemModel(QtWidgets.QFileSystemModel):
 
         return super().flags(index) | QtCore.Qt.ItemIsUserCheckable
 
-    def data(self, index: QtCore.QModelIndex, role: int) -> t.Any:
+    def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.DisplayRole) -> t.Any:
         "Data for given model index and role"
         # Override parent class method to handle checkboxes
         if role == QtCore.Qt.CheckStateRole and index.column() == 0:
