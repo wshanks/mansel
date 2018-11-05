@@ -1,3 +1,8 @@
+sudo: required
+
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install -y xvfb herbstluftwm
 language: python
 dist: xenial
 python:
@@ -5,6 +10,12 @@ python:
   - "3.6"
   - "3.7"
 install:
+  - "export DISPLAY=:99.0"
+  - "/sbin/start-stop-daemon --start --quiet --pidfile /tmp/custom_xvfb_99.pid --make-pidfile --background --exec /usr/bin/Xvfb -- :99 -screen 0 1920x1200x24 -ac +extension GLX +render -noreset"
+  - sleep 3
   - make init
+before_script:
+  - "herbstluftwm &"
+  - sleep 1
 script:
   - make test
