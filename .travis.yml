@@ -1,0 +1,9 @@
+nguage: python
+python:
+  - "3.5"
+  - "3.6"
+  - "3.7"
+install:
+  - make init
+script:
+  - make test

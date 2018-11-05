@@ -3,6 +3,7 @@
 all: lib cli pyqt-cli
 
 init:
+	pip install --upgrade pipenv
 	pipenv install --dev --skip-lock
 
 lib:
