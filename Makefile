@@ -16,7 +16,7 @@ pyqt-cli:
 	cd pyqt-cli && pipenv run python setup.py sdist bdist_wheel
 
 test:
-	pipenv run pytest -vvv
+	pipenv run pytest -vvv -s
 
 release: release-lib release-cli release-pyqt-cli
 
